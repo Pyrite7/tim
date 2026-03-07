@@ -32,9 +32,9 @@ pub struct Add {
     #[argh(positional)]
     name: String,
 
-    /// deadline for task
-    #[argh(option, short = 'd')]
-    deadline: Option<String>,
+    // /// deadline for task
+    // #[argh(option, short = 'd')]
+    // deadline: Option<String>,
 }
 
 #[derive(Debug, FromArgs, PartialEq, Eq)]
