@@ -1,5 +1,7 @@
 use argh::FromArgs;
 
+use crate::data::Task;
+
 
 
 
@@ -7,7 +9,7 @@ use argh::FromArgs;
 /// Simple time management tool with automatic task scheduling.
 pub struct Args {
     #[argh(subcommand)]
-    subcommand: Subcommand,
+    pub subcommand: Subcommand,
 }
 
 #[derive(Debug, FromArgs, PartialEq, Eq)]
@@ -30,11 +32,18 @@ pub struct Ls {}
 #[argh(subcommand, name = "add")]
 pub struct Add {
     #[argh(positional)]
-    name: String,
+    pub name: String,
 
     // /// deadline for task
     // #[argh(option, short = 'd')]
     // deadline: Option<String>,
+}
+
+impl Add {
+    // The task constructed by these args
+    pub fn task(&self) -> Task {
+        Task { name: self.name.clone(), ..Default::default() }
+    }
 }
 
 #[derive(Debug, FromArgs, PartialEq, Eq)]
@@ -47,7 +56,7 @@ pub struct Sch {}
 #[argh(subcommand, name = "done")]
 pub struct Done {
     #[argh(positional)]
-    name: String,
+    pub name: String,
 }
 
 #[derive(Debug, FromArgs, PartialEq, Eq)]
@@ -55,5 +64,5 @@ pub struct Done {
 #[argh(subcommand, name = "start")]
 pub struct Start {
     #[argh(positional)]
-    name: String,
+    pub name: String,
 }
