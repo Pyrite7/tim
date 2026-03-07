@@ -1,0 +1,10 @@
+[package]
+name = "tim"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.102"
+argh = "0.1.17"
+chrono = "0.4.44"
+json = "0.12.4"
