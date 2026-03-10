@@ -1,6 +1,7 @@
+use anyhow::Result;
 use argh::FromArgs;
 
-use crate::data::Task;
+use crate::{expr::DateTimeExpr, Task, util::DateTime};
 
 
 
@@ -34,15 +35,19 @@ pub struct Add {
     #[argh(positional)]
     pub name: String,
 
-    // /// deadline for task
-    // #[argh(option, short = 'd')]
-    // deadline: Option<String>,
+    /// deadline for task
+    #[argh(option, short = 'd')]
+    deadline: Option<DateTimeExpr>,
 }
 
 impl Add {
-    // The task constructed by these args
-    pub fn task(&self) -> Task {
-        Task { name: self.name.clone(), ..Default::default() }
+    /// Construct the task to be added by this subcommand
+    pub fn task(&self, now: DateTime) -> Result<Task> {
+        let mut result = Task::new(&self.name);
+        if let Some(deadline) = &self.deadline {
+            result.deadline = Some(deadline.eval(now)?)
+        }
+        Ok(result)
     }
 }
 

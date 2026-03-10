@@ -1,8 +1,7 @@
-use chrono::{DateTime, Local};
+use chrono::Utc;
 
 
 
 
 
-pub type Time = DateTime<Local>;
-
+pub type DateTime = chrono::DateTime<Utc>;
