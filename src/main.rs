@@ -2,7 +2,7 @@ use std::{env, fs, path::PathBuf, str::FromStr};
 
 use anyhow::{Result, anyhow};
 use chrono::Utc;
-use tim::{cli::{Args, Subcommand}, Task};
+use tim::{Task, cli::{Args, Subcommand}, print_info_table};
 
 
 
@@ -19,13 +19,14 @@ fn main() -> Result<()> {
             fs::write(data_dir.join(task.file_name()), serde_json::to_string(&task)?)?;
         }
         Subcommand::Ls(_) => {
-            for file in fs::read_dir(data_dir)? {
-                let file = file?;
-                if file.file_name().to_string_lossy().ends_with(".json") {
-                    let task: Task = serde_json::from_str(&fs::read_to_string(file.path())?)?;
-                    println!("{}", task.name)
-                }
-            }
+            print_info_table(&data_dir, false, true)?;
+            // for file in fs::read_dir(data_dir)? {
+            //     let file = file?;
+            //     if file.file_name().to_string_lossy().ends_with(".json") {
+            //         let task: Task = serde_json::from_str(&fs::read_to_string(file.path())?)?;
+            //         println!("{}", task.name)
+            //     }
+            // }
         }
         Subcommand::Start(start) => {
             let file_contents = &fs::read_to_string(data_dir.join(start.name.clone() + ".json"))
