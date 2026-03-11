@@ -26,7 +26,15 @@ pub enum Subcommand {
 #[derive(Debug, FromArgs, PartialEq, Eq)]
 /// List tasks
 #[argh(subcommand, name = "ls")]
-pub struct Ls {}
+pub struct Ls {
+    /// show all columns
+    #[argh(switch, short = 'a')]
+    pub all_columns: bool,
+
+    /// only show undone tasks
+    #[argh(switch, short = 'u')]
+    pub only_undone: bool,
+}
 
 #[derive(Debug, FromArgs, PartialEq, Eq)]
 /// Add a task

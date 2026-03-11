@@ -103,13 +103,20 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
     let print_row = |cols: &[&str]| {
         for (n, col) in cols.iter().enumerate() {
             let width = column_widths[n];
-            print!("| {:<width$} ", col);
+            if *col == "-" {
+                // Center the dash in empty columns
+                print!("| {:^width$} ", col);
+            } else {
+                print!("| {:<width$} ", col);
+            }
         }
 
         println!("|");
     };
 
     print_row(&columns);
+    let separator_cols: Vec<_> = column_widths.iter().map(|w| "-".repeat(*w)).collect();
+    print_row(&separator_cols.iter().map(|s| &s as &str).collect::<Vec<_>>());
     for task in tasks {
         let cols = columns_of_task(&task);
         let cols: Vec<_> = cols.iter().map(|s| &s as &str).collect();

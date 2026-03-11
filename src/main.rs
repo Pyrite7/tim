@@ -18,15 +18,8 @@ fn main() -> Result<()> {
             let task = add.task(Utc::now())?;
             fs::write(data_dir.join(task.file_name()), serde_json::to_string(&task)?)?;
         }
-        Subcommand::Ls(_) => {
-            print_info_table(&data_dir, false, true)?;
-            // for file in fs::read_dir(data_dir)? {
-            //     let file = file?;
-            //     if file.file_name().to_string_lossy().ends_with(".json") {
-            //         let task: Task = serde_json::from_str(&fs::read_to_string(file.path())?)?;
-            //         println!("{}", task.name)
-            //     }
-            // }
+        Subcommand::Ls(ls) => {
+            print_info_table(&data_dir, ls.only_undone, ls.all_columns)?;
         }
         Subcommand::Start(start) => {
             let file_contents = &fs::read_to_string(data_dir.join(start.name.clone() + ".json"))
