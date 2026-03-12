@@ -117,6 +117,8 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
     print_row(&columns);
     let separator_cols: Vec<_> = column_widths.iter().map(|w| "-".repeat(*w)).collect();
     print_row(&separator_cols.iter().map(|s| &s as &str).collect::<Vec<_>>());
+    
+    tasks.sort_by_key(|task| task.deadline);
     for task in tasks {
         let cols = columns_of_task(&task);
         let cols: Vec<_> = cols.iter().map(|s| &s as &str).collect();
