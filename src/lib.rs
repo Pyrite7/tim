@@ -13,7 +13,7 @@ use crate::util::DateTime;
 
 
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Hash)]
 pub struct Task {
     pub name: String,
     pub deadline: Option<DateTime>,

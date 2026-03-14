@@ -21,6 +21,7 @@ pub enum Subcommand {
     Sch(Sch),
     Done(Done),
     Start(Start),
+    Rm(Rm),
 }
 
 #[derive(Debug, FromArgs, PartialEq, Eq)]
@@ -76,6 +77,14 @@ pub struct Done {
 /// Mark a task as started
 #[argh(subcommand, name = "start")]
 pub struct Start {
+    #[argh(positional)]
+    pub name: String,
+}
+
+#[derive(Debug, FromArgs, PartialEq, Eq)]
+/// Remove a task
+#[argh(subcommand, name = "rm")]
+pub struct Rm {
     #[argh(positional)]
     pub name: String,
 }
