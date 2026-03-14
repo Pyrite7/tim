@@ -1,7 +1,7 @@
 use std::{collections::HashMap, env, fs, path::PathBuf, str::FromStr};
 
 use anyhow::{Result, anyhow, bail};
-use chrono::Utc;
+use tim::{schedule_tasks, util};
 use tim::{Task, cli::{Args, Subcommand}, print_info_table};
 
 
@@ -15,8 +15,8 @@ fn main() -> Result<()> {
 
     match args.subcommand {
         Subcommand::Add(add) => {
-            let task = add.task(Utc::now())?;
-            fs::write(data_dir.join(task.file_name()), serde_json::to_string(&task)?)?;
+            let task = add.task(util::now())?;
+            task.save(&data_dir)?;
             println!("added task \"{}\"", task.name)
         }
 
@@ -28,8 +28,8 @@ fn main() -> Result<()> {
             let file_contents = &fs::read_to_string(data_dir.join(start.name.clone() + ".json"))
                 .map_err(|_| anyhow!("task \"{}\" not found", start.name))?;
             let mut task: Task = serde_json::from_str(file_contents)?;
-            task.started_at = Some(Utc::now());
-            fs::write(data_dir.join(task.file_name()), serde_json::to_string(&task)?)?;
+            task.started_at = Some(util::now());
+            task.save(&data_dir)?;
             println!("marked task \"{}\" as started", task.name)
         }
 
@@ -37,8 +37,8 @@ fn main() -> Result<()> {
             let file_contents = &fs::read_to_string(data_dir.join(done.name.clone() + ".json"))
                 .map_err(|_| anyhow!("task \"{}\" not found", done.name))?;
             let mut task: Task = serde_json::from_str(file_contents)?;
-            task.finished_at = Some(Utc::now());
-            fs::write(data_dir.join(task.file_name()), serde_json::to_string(&task)?)?;
+            task.finished_at = Some(util::now());
+            task.save(&data_dir)?;
             println!("marked task \"{}\" as done", task.name);
         }
 
@@ -62,7 +62,10 @@ fn main() -> Result<()> {
             }
         }
 
-        _ => ()
+        Subcommand::Sch(_) => {
+            schedule_tasks(&data_dir)?;
+            println!("scheduled tasks")
+        }
     }
 
     Ok(())
