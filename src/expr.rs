@@ -83,7 +83,7 @@ pub enum TimeDeltaExpr {
 }
 
 impl TimeDeltaExpr {
-    fn eval(&self) -> TimeDelta {
+    pub fn eval(&self) -> TimeDelta {
         match self {
             Self::TimeOfDay { h, m } => TimeDelta::minutes((m + h * 60) as _),
             Self::TimeAmount { w, d, h, m, s } => {

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use argh::FromArgs;
 
-use crate::{expr::TimeExpr, Task, util::DateTime};
+use crate::{Task, expr::{TimeDeltaExpr, TimeExpr}, util::DateTime};
 
 
 
@@ -47,6 +47,10 @@ pub struct Add {
     /// deadline for task
     #[argh(option, short = 'd')]
     deadline: Option<TimeExpr>,
+
+    /// estimated time taken
+    #[argh(option, short = 't')]
+    takes: Option<TimeDeltaExpr>,
 }
 
 impl Add {
@@ -55,6 +59,9 @@ impl Add {
         let mut result = Task::new(&self.name);
         if let Some(deadline) = &self.deadline {
             result.deadline = Some(deadline.eval(now))
+        }
+        if let Some(takes) = &self.takes {
+            result.specified_duration = Some(takes.eval())
         }
         Ok(result)
     }
