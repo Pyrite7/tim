@@ -3,7 +3,7 @@ pub mod util;
 pub mod expr;
 
 
-use std::{fs, path::Path};
+use std::{cmp::Ordering, fs, path::Path};
 
 use anyhow::{Result, ensure};
 use chrono::{Duration, NaiveTime, TimeDelta};
@@ -136,24 +136,24 @@ pub fn schedule_tasks(data_dir: &Path) -> Result<()> {
 pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_columns: bool) -> Result<Vec<anyhow::Error>> {
     let columns = if show_all_columns { vec![
         "Name",
-        "Deadline",
-        "Estimated duration",
         "Scheduled start",
+        "Estimated duration",
+        "Deadline",
         "Started at",
         "Finished at",
     ] } else { vec![
         "Name",    
-        "Deadline",    
-        "Estimated duration",    
         "Scheduled start",    
+        "Estimated duration",    
+        "Deadline",    
     ] };
 
     let columns_of_task = |task: &Task| {
         let mut cols = vec![
             task.name.clone(),
-            task.deadline.map(|t| t.to_string()).unwrap_or("-".into()),
-            task.specified_duration.map(|t| t.to_string()).unwrap_or("-".into()),
             task.scheduled_start.map(|t| t.to_string()).unwrap_or("-".into()),
+            task.specified_duration.map(|t| t.to_string()).unwrap_or("-".into()),
+            task.deadline.map(|t| t.to_string()).unwrap_or("-".into()),
             task.started_at.map(|t| t.to_string()).unwrap_or("-".into()),
             task.finished_at.map(|t| t.to_string()).unwrap_or("-".into()),
         ];
@@ -215,7 +215,32 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
     let separator_cols: Vec<_> = column_widths.iter().map(|w| "-".repeat(*w)).collect();
     print_row(&separator_cols.iter().map(|s| &s as &str).collect::<Vec<_>>());
     
-    tasks.sort_by_key(|task| task.deadline);
+    tasks.sort_by(|a, b| {
+        // Completed tasks at the bottom, sorted by most recent completion time
+        match (a.finished_at, b.finished_at) {
+            (Some(t_a), Some(t_b)) => return t_b.cmp(&t_a),
+            (Some(_), None) => return Ordering::Greater,
+            (None, Some(_)) => return Ordering::Less,
+            _ => (),
+        }
+        
+        // In-progress tasks at the top of the list
+        match (a.started_at, b.started_at) {
+            (Some(t_a), Some(t_b)) => return t_a.cmp(&t_b),
+            (Some(_), None) => return Ordering::Less,
+            (None, Some(_)) => return Ordering::Greater,
+            _ => (),
+        }
+        
+        // Other tasks sorted by time, where time is:
+        //      - Scheduled start for scheduled tasks
+        //      - Deadline for unscheduled tasks
+        let t_a = a.scheduled_start.or(a.deadline);
+        let t_b = b.scheduled_start.or(b.deadline);
+
+        t_a.cmp(&t_b)
+    });
+
     for task in tasks {
         let cols = columns_of_task(&task);
         let cols: Vec<_> = cols.iter().map(|s| &s as &str).collect();
@@ -224,3 +249,4 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
 
     Ok(file_errors)
 }
+
