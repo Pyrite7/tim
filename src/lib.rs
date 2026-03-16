@@ -150,7 +150,7 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
 
     let columns_of_task = |task: &Task| {
         let dt_fmt1 = |dt| format_datetime(&dt);
-        let dt_fmt2 = |dt| format_relative_datetime(&dt, &util::now());
+        // let dt_fmt2 = |dt| format_relative_datetime(&dt, &util::now());
         let mut cols = vec![
             task.name.clone(),
             task.scheduled_start.map(dt_fmt1).unwrap_or("-".into()),

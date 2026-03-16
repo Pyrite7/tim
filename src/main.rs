@@ -1,6 +1,6 @@
-use std::{collections::HashMap, env, fs, path::PathBuf, str::FromStr};
+use std::{env, fs, path::PathBuf, str::FromStr};
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Result, anyhow};
 use tim::{schedule_tasks, util};
 use tim::{Task, cli::{Args, Subcommand}, print_info_table};
 
@@ -43,23 +43,26 @@ fn main() -> Result<()> {
         }
 
         Subcommand::Rm(rm) => {
-            let mut candidates = HashMap::new();
-            for entry in fs::read_dir(data_dir)? {
-                let path = entry?.path();
-                let contents = fs::read_to_string(&path)?;
-                let task: Task = serde_json::from_str(&contents)?;
-                if task.name.contains(&rm.name) {
-                    candidates.insert(task, path);
-                }
-            }
-            if candidates.len() == 0 {
-                bail!("no tasks matching \"{}\" found", rm.name);
-            } else if candidates.len() == 1 {
-                fs::remove_file(candidates.values().next().unwrap())?;
-                println!("removed task \"{}\"", candidates.keys().next().unwrap().name);
-            } else {
-                todo!()
-            }
+            // let mut candidates = HashMap::new();
+            // for entry in fs::read_dir(data_dir)? {
+            //     let path = entry?.path();
+            //     let contents = fs::read_to_string(&path)?;
+            //     let task: Task = serde_json::from_str(&contents)?;
+            //     if task.name.contains(&rm.name) {
+            //         candidates.insert(task, path);
+            //     }
+            // }
+            // if candidates.len() == 0 {
+            //     bail!("no tasks matching \"{}\" found", rm.name);
+            // } else if candidates.len() == 1 {
+            //     fs::remove_file(candidates.values().next().unwrap())?;
+            //     println!("removed task \"{}\"", candidates.keys().next().unwrap().name);
+            // } else {
+            //     todo!()
+            // }
+            fs::remove_file(data_dir.join(rm.name.clone() + ".json"))
+                .map_err(|_| anyhow!("task \"{}\" not found", rm.name))?;
+            println!("removed task \"{}\"", rm.name)
         }
 
         Subcommand::Sch(_) => {
