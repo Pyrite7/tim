@@ -6,7 +6,7 @@ pub mod expr;
 use std::{cmp::Ordering, fs, path::Path};
 
 use anyhow::{Result, ensure};
-use chrono::{Duration, NaiveTime, TimeDelta};
+use chrono::{Datelike, Duration, NaiveTime, TimeDelta, Timelike};
 use serde::{Deserialize, Serialize};
 use crate::util::DateTime;
 
@@ -149,13 +149,15 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
     ] };
 
     let columns_of_task = |task: &Task| {
+        let dt_fmt1 = |dt| format_datetime(&dt);
+        let dt_fmt2 = |dt| format_relative_datetime(&dt, &util::now());
         let mut cols = vec![
             task.name.clone(),
-            task.scheduled_start.map(|t| t.to_string()).unwrap_or("-".into()),
-            task.specified_duration.map(|t| t.to_string()).unwrap_or("-".into()),
-            task.deadline.map(|t| t.to_string()).unwrap_or("-".into()),
-            task.started_at.map(|t| t.to_string()).unwrap_or("-".into()),
-            task.finished_at.map(|t| t.to_string()).unwrap_or("-".into()),
+            task.scheduled_start.map(dt_fmt1).unwrap_or("-".into()),
+            task.specified_duration.map(|t| format_timedelta(&t)).unwrap_or("-".into()),
+            task.deadline.map(dt_fmt1).unwrap_or("-".into()),
+            task.started_at.map(dt_fmt1).unwrap_or("-".into()),
+            task.finished_at.map(dt_fmt1).unwrap_or("-".into()),
         ];
         if !show_all_columns {
             // started_at
@@ -248,5 +250,65 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
     }
 
     Ok(file_errors)
+}
+
+
+pub fn format_datetime(datetime: &DateTime) -> String {
+    format!("{h:02}:{m:02}:{s:02} {d}.{mon}.{y}",
+        h = datetime.hour(),
+        m = datetime.minute(),
+        s = datetime.second(),
+        d = datetime.day(),
+        mon = datetime.month(),
+        y = datetime.year(),
+    )
+}
+
+pub fn format_timedelta(timedelta: &TimeDelta) -> String {
+    let mut s = String::new();
+    let mut remaining = timedelta.clone();
+    
+    let weeks = remaining.num_weeks();
+    if weeks > 0 {
+        s += &format!("{}w", weeks);
+        remaining -= TimeDelta::weeks(weeks);
+    }
+
+    let days = remaining.num_days();
+    if days > 0 && weeks < 2 {
+        s += &format!("{}d", days);
+        remaining -= TimeDelta::days(days);
+    }
+
+    let hours = remaining.num_hours();
+    if hours > 0 && days <= 2 && weeks == 0 {
+        s += &format!("{}h", hours);
+        remaining -= TimeDelta::hours(hours);
+    }
+
+    let minutes = remaining.num_minutes();
+    if minutes > 0 && days == 0 && weeks == 0 {
+        s += &format!("{}m", minutes);
+        remaining -= TimeDelta::minutes(minutes);
+    }
+
+    let seconds = remaining.num_seconds();
+    if minutes < 10 && hours == 0 && days == 0 && weeks == 0 {
+        s += &format!("{}s", seconds);
+        remaining -= TimeDelta::seconds(seconds);
+    }
+
+    s
+}
+
+
+pub fn format_relative_datetime(datetime: &DateTime, now: &DateTime) -> String {
+    let delta = now.signed_duration_since(datetime);
+
+    if delta < TimeDelta::zero() {
+        format!("in {}", format_timedelta(&-delta))
+    } else {
+        format!("{} ago", format_timedelta(&delta))
+    }
 }
 
