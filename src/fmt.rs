@@ -15,35 +15,35 @@ pub fn format_datetime(datetime: IODateTime) -> String {
 
 pub fn format_timedelta(timedelta: TimeDelta) -> String {
     let mut s = String::new();
-    let mut remaining = timedelta.clone();
+    let mut remaining = timedelta;
 
     let weeks = remaining.num_weeks();
     if weeks > 0 {
-        s += &format!("{}w", weeks);
+        s += &format!("{weeks}w");
         remaining -= TimeDelta::weeks(weeks);
     }
 
     let days = remaining.num_days();
     if days > 0 && weeks < 2 {
-        s += &format!("{}d", days);
+        s += &format!("{days}d");
         remaining -= TimeDelta::days(days);
     }
 
     let hours = remaining.num_hours();
     if hours > 0 && days <= 2 && weeks == 0 {
-        s += &format!("{}h", hours);
+        s += &format!("{hours}h");
         remaining -= TimeDelta::hours(hours);
     }
 
     let minutes = remaining.num_minutes();
     if minutes > 0 && days == 0 && weeks == 0 {
-        s += &format!("{}m", minutes);
+        s += &format!("{minutes}m");
         remaining -= TimeDelta::minutes(minutes);
     }
 
     let seconds = remaining.num_seconds();
     if minutes < 10 && hours == 0 && days == 0 && weeks == 0 {
-        s += &format!("{}s", seconds);
+        s += &format!("{seconds}s");
         remaining -= TimeDelta::seconds(seconds);
     }
 

@@ -130,7 +130,7 @@ pub fn schedule_tasks(data_dir: &Path) -> Result<()> {
         time_cursor += task.estimated_duration();
 
         // Save task
-        task.save(&data_dir)?;
+        task.save(data_dir)?;
     }
 
     Ok(())
@@ -162,7 +162,7 @@ pub fn print_info_table(
             task.name.clone(),
             task.scheduled_start.map(dt_fmt1).unwrap_or("-".into()),
             task.specified_duration
-                .map(|t| fmt::format_timedelta(t))
+                .map(fmt::format_timedelta)
                 .unwrap_or("-".into()),
             task.deadline.map(dt_fmt1).unwrap_or("-".into()),
             task.started_at.map(dt_fmt1).unwrap_or("-".into()),
@@ -174,7 +174,7 @@ pub fn print_info_table(
             // finished_at (note that index has changed to 4 because 'started_at' was removed)
             cols.remove(4);
         }
-        return cols;
+        cols
     };
 
     let mut column_widths: Vec<usize> = columns
@@ -189,7 +189,7 @@ pub fn print_info_table(
             let file = file?;
             let task: Task = serde_json::from_str(&fs::read_to_string(file.path())?)?;
 
-            return Ok::<_, anyhow::Error>(task);
+            Ok::<_, anyhow::Error>(task)
         };
 
         match catch_errors() {
@@ -216,9 +216,9 @@ pub fn print_info_table(
             let width = column_widths[n];
             if *col == "-" {
                 // Center the dash in empty columns
-                print!("| {:^width$} ", col);
+                print!("| {col:^width$} ");
             } else {
-                print!("| {:<width$} ", col);
+                print!("| {col:<width$} ");
             }
         }
 
@@ -230,7 +230,7 @@ pub fn print_info_table(
     print_row(
         &separator_cols
             .iter()
-            .map(|s| &s as &str)
+            .map(|s| s as &str)
             .collect::<Vec<_>>(),
     );
 
@@ -262,7 +262,7 @@ pub fn print_info_table(
 
     for task in tasks {
         let cols = columns_of_task(&task);
-        let cols: Vec<_> = cols.iter().map(|s| &s as &str).collect();
+        let cols: Vec<_> = cols.iter().map(|s| s as &str).collect();
         print_row(&cols);
     }
 

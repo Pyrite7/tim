@@ -39,7 +39,7 @@ impl FromStr for TimeExpr {
             .next()
             .ok_or(anyhow!("invalid time expression: {s}"))?;
         let deltas: Vec<_> = parts
-            .map(|d| TimeDeltaExpr::from_str(d))
+            .map(TimeDeltaExpr::from_str)
             .collect::<Result<Vec<TimeDeltaExpr>, Error>>()?;
 
         let anchor = TimeExpr::from_str(anchor)?;
