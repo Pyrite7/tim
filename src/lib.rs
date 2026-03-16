@@ -1,17 +1,14 @@
 pub mod cli;
-pub mod util;
 pub mod expr;
-
+pub mod fmt;
+pub mod util;
 
 use std::{cmp::Ordering, fs, path::Path};
 
-use anyhow::{Result, ensure};
-use chrono::{Datelike, Duration, NaiveTime, TimeDelta, Timelike};
-use serde::{Deserialize, Serialize};
 use crate::util::*;
-
-
-
+use anyhow::{Result, ensure};
+use chrono::{Duration, NaiveTime, TimeDelta};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Hash)]
 pub struct Task {
@@ -25,7 +22,10 @@ pub struct Task {
 
 impl Task {
     pub fn new(name: &str) -> Self {
-        Self { name: name.to_string(), ..Default::default() }
+        Self {
+            name: name.to_string(),
+            ..Default::default()
+        }
     }
 
     // Returns the name of the file this task is to be saved in.
@@ -35,7 +35,10 @@ impl Task {
 
     // Save the task to the given data directory. (will overwrite any existing task with the same name!)
     pub fn save(&self, data_dir: &Path) -> Result<()> {
-        Ok(fs::write(data_dir.join(self.file_name()), serde_json::to_string_pretty(&self)?)?)
+        Ok(fs::write(
+            data_dir.join(self.file_name()),
+            serde_json::to_string_pretty(&self)?,
+        )?)
     }
 
     pub fn estimated_duration(&self) -> TimeDelta {
@@ -47,7 +50,6 @@ impl Task {
     }
 }
 
-
 /// Loads all tasks from the given data directory. Fails if even one of the tasks fails to load.
 pub fn load_all_tasks(data_dir: &Path) -> Result<Vec<Task>> {
     let mut tasks: Vec<Task> = Vec::new();
@@ -57,7 +59,6 @@ pub fn load_all_tasks(data_dir: &Path) -> Result<Vec<Task>> {
     }
     Ok(tasks)
 }
-
 
 /// Attempts to load all tasks from the given data directory.
 pub fn load_tasks(data_dir: &Path) -> Result<Vec<Result<Task>>> {
@@ -74,7 +75,6 @@ pub fn load_tasks(data_dir: &Path) -> Result<Vec<Result<Task>>> {
     Ok(result)
 }
 
-
 /// Automatically schedules all tasks.
 pub fn schedule_tasks(data_dir: &Path) -> Result<()> {
     // Load all undone tasks
@@ -87,12 +87,16 @@ pub fn schedule_tasks(data_dir: &Path) -> Result<()> {
     tasks.sort_unstable_by_key(|task| task.deadline.unwrap_or(DateTime::MAX_UTC));
 
     // Starting time (NOTE: ensures that at most 1 task in progress at any given time)
-    let tasks_in_progress: Vec<_> = tasks.iter()
+    let tasks_in_progress: Vec<_> = tasks
+        .iter()
         .filter(|task| task.started_at.is_some() && task.finished_at.is_none())
         .collect();
-    ensure!(tasks_in_progress.len() <= 1, "at most 1 task can be in progress at a time");
+    ensure!(
+        tasks_in_progress.len() <= 1,
+        "at most 1 task can be in progress at a time"
+    );
     let starting_time = if let Some(task) = tasks_in_progress.first() {
-        task.started_at.unwrap() + task.estimated_duration() 
+        task.started_at.unwrap() + task.estimated_duration()
     } else {
         util::now()
     };
@@ -115,7 +119,8 @@ pub fn schedule_tasks(data_dir: &Path) -> Result<()> {
         } else if time_cursor.time() + task.estimated_duration() > working_hours_end {
             time_cursor = time_cursor
                 .date_naive()
-                .succ_opt().expect("reached end of time")
+                .succ_opt()
+                .expect("reached end of time")
                 .and_time(working_hours_start)
                 .and_utc();
         }
@@ -127,35 +132,38 @@ pub fn schedule_tasks(data_dir: &Path) -> Result<()> {
         // Save task
         task.save(&data_dir)?;
     }
-    
+
     Ok(())
 }
 
-
-
 /// Print an info listing for tasks.
-pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_columns: bool) -> Result<Vec<anyhow::Error>> {
-    let columns = if show_all_columns { vec![
-        "Name",
-        "Scheduled start",
-        "Estimated duration",
-        "Deadline",
-        "Started at",
-        "Finished at",
-    ] } else { vec![
-        "Name",    
-        "Scheduled start",    
-        "Estimated duration",    
-        "Deadline",    
-    ] };
+pub fn print_info_table(
+    data_dir: &Path,
+    only_undone_tasks: bool,
+    show_all_columns: bool,
+) -> Result<Vec<anyhow::Error>> {
+    let columns = if show_all_columns {
+        vec![
+            "Name",
+            "Scheduled start",
+            "Estimated duration",
+            "Deadline",
+            "Started at",
+            "Finished at",
+        ]
+    } else {
+        vec!["Name", "Scheduled start", "Estimated duration", "Deadline"]
+    };
 
     let columns_of_task = |task: &Task| {
-        let dt_fmt1 = |dt| format_datetime(to_io(dt));
+        let dt_fmt1 = |dt| fmt::format_datetime(to_io(dt));
         // let dt_fmt2 = |dt| format_relative_datetime(to_io(dt), util::now());
         let mut cols = vec![
             task.name.clone(),
             task.scheduled_start.map(dt_fmt1).unwrap_or("-".into()),
-            task.specified_duration.map(|t| format_timedelta(t)).unwrap_or("-".into()),
+            task.specified_duration
+                .map(|t| fmt::format_timedelta(t))
+                .unwrap_or("-".into()),
             task.deadline.map(dt_fmt1).unwrap_or("-".into()),
             task.started_at.map(dt_fmt1).unwrap_or("-".into()),
             task.finished_at.map(dt_fmt1).unwrap_or("-".into()),
@@ -166,11 +174,14 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
             // finished_at (note that index has changed to 4 because 'started_at' was removed)
             cols.remove(4);
         }
-        return cols
+        return cols;
     };
 
-    let mut column_widths: Vec<usize> = columns.iter().map(|col_name| col_name.chars().count()).collect();
-    
+    let mut column_widths: Vec<usize> = columns
+        .iter()
+        .map(|col_name| col_name.chars().count())
+        .collect();
+
     let mut tasks = Vec::new();
     let mut file_errors = Vec::new();
     for file in fs::read_dir(data_dir)? {
@@ -195,7 +206,7 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
                     }
                 }
                 tasks.push(task)
-            },
+            }
             Err(err) => file_errors.push(err),
         }
     }
@@ -216,8 +227,13 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
 
     print_row(&columns);
     let separator_cols: Vec<_> = column_widths.iter().map(|w| "-".repeat(*w)).collect();
-    print_row(&separator_cols.iter().map(|s| &s as &str).collect::<Vec<_>>());
-    
+    print_row(
+        &separator_cols
+            .iter()
+            .map(|s| &s as &str)
+            .collect::<Vec<_>>(),
+    );
+
     tasks.sort_by(|a, b| {
         // Completed tasks at the bottom, sorted by most recent completion time
         match (a.finished_at, b.finished_at) {
@@ -226,7 +242,7 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
             (None, Some(_)) => return Ordering::Less,
             _ => (),
         }
-        
+
         // In-progress tasks at the top of the list
         match (a.started_at, b.started_at) {
             (Some(t_a), Some(t_b)) => return t_a.cmp(&t_b),
@@ -234,7 +250,7 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
             (None, Some(_)) => return Ordering::Greater,
             _ => (),
         }
-        
+
         // Other tasks sorted by time, where time is:
         //      - Scheduled start for scheduled tasks
         //      - Deadline for unscheduled tasks
@@ -252,64 +268,3 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
 
     Ok(file_errors)
 }
-
-
-pub fn format_datetime(datetime: IODateTime) -> String {
-    format!("{h:02}:{m:02}:{s:02} {d}.{mon}.{y}",
-        h = datetime.hour(),
-        m = datetime.minute(),
-        s = datetime.second(),
-        d = datetime.day(),
-        mon = datetime.month(),
-        y = datetime.year(),
-    )
-}
-
-pub fn format_timedelta(timedelta: TimeDelta) -> String {
-    let mut s = String::new();
-    let mut remaining = timedelta.clone();
-    
-    let weeks = remaining.num_weeks();
-    if weeks > 0 {
-        s += &format!("{}w", weeks);
-        remaining -= TimeDelta::weeks(weeks);
-    }
-
-    let days = remaining.num_days();
-    if days > 0 && weeks < 2 {
-        s += &format!("{}d", days);
-        remaining -= TimeDelta::days(days);
-    }
-
-    let hours = remaining.num_hours();
-    if hours > 0 && days <= 2 && weeks == 0 {
-        s += &format!("{}h", hours);
-        remaining -= TimeDelta::hours(hours);
-    }
-
-    let minutes = remaining.num_minutes();
-    if minutes > 0 && days == 0 && weeks == 0 {
-        s += &format!("{}m", minutes);
-        remaining -= TimeDelta::minutes(minutes);
-    }
-
-    let seconds = remaining.num_seconds();
-    if minutes < 10 && hours == 0 && days == 0 && weeks == 0 {
-        s += &format!("{}s", seconds);
-        remaining -= TimeDelta::seconds(seconds);
-    }
-
-    s
-}
-
-
-pub fn format_relative_datetime(datetime: IODateTime, now: DateTime) -> String {
-    let delta = now.signed_duration_since(datetime);
-
-    if delta < TimeDelta::zero() {
-        format!("in {}", format_timedelta(-delta))
-    } else {
-        format!("{} ago", format_timedelta(delta))
-    }
-}
-

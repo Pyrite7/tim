@@ -1,7 +1,5 @@
-use chrono::{Local, NaiveDate, NaiveTime, Utc};
 use anyhow::{Result, anyhow};
-
-
+use chrono::{Local, NaiveDate, NaiveTime, Utc};
 
 pub type DateTime = chrono::DateTime<Utc>;
 
@@ -11,11 +9,8 @@ pub fn now() -> DateTime {
 }
 
 pub fn combine_dt(date: NaiveDate, time: NaiveTime) -> DateTime {
-    date
-        .and_time(time)
-        .and_utc()
+    date.and_time(time).and_utc()
 }
-
 
 pub type IODateTime = chrono::DateTime<Local>;
 

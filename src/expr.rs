@@ -1,12 +1,9 @@
-use std::{str::FromStr, sync::LazyLock};
+use std::str::FromStr;
 
 use anyhow::{Error, Result, anyhow, bail};
 use chrono::{NaiveDate, NaiveTime, TimeDelta};
-use regex::{Match, Regex};
 
 use crate::util::*;
-
-
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TimeExpr {
@@ -28,7 +25,7 @@ impl FromStr for TimeExpr {
             "now" => return Ok(Self::Now),
             "today" => return Ok(Self::Today),
             "tmr" | "tomorrow" => return Ok(Self::Tomorrow),
-            _ => ()
+            _ => (),
         }
 
         // Literal dates
@@ -38,13 +35,15 @@ impl FromStr for TimeExpr {
 
         // With deltas
         let mut parts = s.split("+");
-        let anchor = parts.next().ok_or(anyhow!("invalid time expression: {s}"))?;
+        let anchor = parts
+            .next()
+            .ok_or(anyhow!("invalid time expression: {s}"))?;
         let deltas: Vec<_> = parts
             .map(|d| TimeDeltaExpr::from_str(d))
             .collect::<Result<Vec<TimeDeltaExpr>, Error>>()?;
 
         let anchor = TimeExpr::from_str(anchor)?;
-        
+
         if deltas.is_empty() {
             Ok(anchor)
         } else {
@@ -59,22 +58,20 @@ impl TimeExpr {
             Self::Now => Ok(now),
             Self::Today => combine_io_dt_to_utc(now.date_naive(), NaiveTime::default()),
             Self::Tomorrow => combine_io_dt_to_utc(
-                now.date_naive().succ_opt().ok_or(anyhow!("reached end of time"))?, 
-                NaiveTime::default()),
+                now.date_naive()
+                    .succ_opt()
+                    .ok_or(anyhow!("reached end of time"))?,
+                NaiveTime::default(),
+            ),
             Self::Date(date) => combine_io_dt_to_utc(*date, NaiveTime::default()),
-            Self::Add(t, d) => d.iter().fold(Ok(t.eval(now)?), |t, d| {
-                Ok(t? + d.eval())
-            })
+            Self::Add(t, d) => d.iter().fold(Ok(t.eval(now)?), |t, d| Ok(t? + d.eval())),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TimeDeltaExpr {
-    TimeOfDay {
-        h: usize,
-        m: usize,
-    },
+    TimeOfDay { h: usize, m: usize },
     // TODO: fix
     // TimeAmount {
     //     w: usize,
@@ -89,7 +86,6 @@ impl TimeDeltaExpr {
     pub fn eval(&self) -> TimeDelta {
         match self {
             Self::TimeOfDay { h, m } => TimeDelta::minutes((m + h * 60) as _),
-            
             // TODO: fix
             // Self::TimeAmount { w, d, h, m, s } => {
             //     TimeDelta::weeks(*w as _)
@@ -105,9 +101,9 @@ impl TimeDeltaExpr {
 impl FromStr for TimeDeltaExpr {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        static TIME_AMOUNT_REGEX: LazyLock<Regex> = LazyLock::new(
-            || Regex::new(r"(\d+w)?(\d+d)?(\d+h)?(\d+m(?:in)?)?(\d+s)?").unwrap()
-        );
+        // static TIME_AMOUNT_REGEX: LazyLock<Regex> = LazyLock::new(
+        //     || Regex::new(r"(\d+w)?(\d+d)?(\d+h)?(\d+m(?:in)?)?(\d+s)?").unwrap()
+        // );
 
         if s.contains(":") {
             let mut parts = s.split(":");
@@ -120,7 +116,7 @@ impl FromStr for TimeDeltaExpr {
             // let parse = |m: Match<'_>, c| {
             //     usize::from_str(m.as_str().strip_suffix(c).unwrap())
             // };
-            // Ok(TimeDeltaExpr::TimeAmount { 
+            // Ok(TimeDeltaExpr::TimeAmount {
             //     w: caps.get(1).map(|m| parse(m, "w")).unwrap_or(Ok(0))?,
             //     d: caps.get(1).map(|m| parse(m, "d")).unwrap_or(Ok(0))?,
             //     h: caps.get(1).map(|m| parse(m, "h")).unwrap_or(Ok(0))?,

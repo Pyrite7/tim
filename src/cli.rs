@@ -1,10 +1,11 @@
 use anyhow::Result;
 use argh::FromArgs;
 
-use crate::{Task, expr::{TimeDeltaExpr, TimeExpr}, util::DateTime};
-
-
-
+use crate::{
+    Task,
+    expr::{TimeDeltaExpr, TimeExpr},
+    util::DateTime,
+};
 
 #[derive(Debug, FromArgs, PartialEq, Eq)]
 /// Simple time management tool with automatic task scheduling.

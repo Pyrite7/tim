@@ -1,13 +1,12 @@
 use std::{env, fs, path::PathBuf, str::FromStr};
 
 use anyhow::{Result, anyhow};
+use tim::{
+    Task,
+    cli::{Args, Subcommand},
+    print_info_table,
+};
 use tim::{schedule_tasks, util};
-use tim::{Task, cli::{Args, Subcommand}, print_info_table};
-
-
-
-
-
 
 fn main() -> Result<()> {
     let data_dir = PathBuf::from_str(&env::var("TIM_DATA_DIR")?)?;
