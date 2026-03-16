@@ -8,7 +8,7 @@ use std::{cmp::Ordering, fs, path::Path};
 use anyhow::{Result, ensure};
 use chrono::{Datelike, Duration, NaiveTime, TimeDelta, Timelike};
 use serde::{Deserialize, Serialize};
-use crate::util::DateTime;
+use crate::util::*;
 
 
 
@@ -104,6 +104,7 @@ pub fn schedule_tasks(data_dir: &Path) -> Result<()> {
     let mut time_cursor = starting_time;
     for task in tasks.iter_mut() {
         // Check if task fits within working hours
+        // TODO: remove hard-coded working hours (note that these are in UTC time and not local)
         let working_hours_start = NaiveTime::from_hms_opt(9, 0, 0).unwrap();
         let working_hours_end = NaiveTime::from_hms_opt(18, 0, 0).unwrap();
         if time_cursor.time() < working_hours_start {
@@ -149,12 +150,12 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
     ] };
 
     let columns_of_task = |task: &Task| {
-        let dt_fmt1 = |dt| format_datetime(&dt);
-        // let dt_fmt2 = |dt| format_relative_datetime(&dt, &util::now());
+        let dt_fmt1 = |dt| format_datetime(to_io(dt));
+        // let dt_fmt2 = |dt| format_relative_datetime(to_io(dt), util::now());
         let mut cols = vec![
             task.name.clone(),
             task.scheduled_start.map(dt_fmt1).unwrap_or("-".into()),
-            task.specified_duration.map(|t| format_timedelta(&t)).unwrap_or("-".into()),
+            task.specified_duration.map(|t| format_timedelta(t)).unwrap_or("-".into()),
             task.deadline.map(dt_fmt1).unwrap_or("-".into()),
             task.started_at.map(dt_fmt1).unwrap_or("-".into()),
             task.finished_at.map(dt_fmt1).unwrap_or("-".into()),
@@ -253,7 +254,7 @@ pub fn print_info_table(data_dir: &Path, only_undone_tasks: bool, show_all_colum
 }
 
 
-pub fn format_datetime(datetime: &DateTime) -> String {
+pub fn format_datetime(datetime: IODateTime) -> String {
     format!("{h:02}:{m:02}:{s:02} {d}.{mon}.{y}",
         h = datetime.hour(),
         m = datetime.minute(),
@@ -264,7 +265,7 @@ pub fn format_datetime(datetime: &DateTime) -> String {
     )
 }
 
-pub fn format_timedelta(timedelta: &TimeDelta) -> String {
+pub fn format_timedelta(timedelta: TimeDelta) -> String {
     let mut s = String::new();
     let mut remaining = timedelta.clone();
     
@@ -302,13 +303,13 @@ pub fn format_timedelta(timedelta: &TimeDelta) -> String {
 }
 
 
-pub fn format_relative_datetime(datetime: &DateTime, now: &DateTime) -> String {
+pub fn format_relative_datetime(datetime: IODateTime, now: DateTime) -> String {
     let delta = now.signed_duration_since(datetime);
 
     if delta < TimeDelta::zero() {
-        format!("in {}", format_timedelta(&-delta))
+        format!("in {}", format_timedelta(-delta))
     } else {
-        format!("{} ago", format_timedelta(&delta))
+        format!("{} ago", format_timedelta(delta))
     }
 }
 

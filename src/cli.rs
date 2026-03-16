@@ -58,7 +58,7 @@ impl Add {
     pub fn task(&self, now: DateTime) -> Result<Task> {
         let mut result = Task::new(&self.name);
         if let Some(deadline) = &self.deadline {
-            result.deadline = Some(deadline.eval(now))
+            result.deadline = Some(deadline.eval(now)?)
         }
         if let Some(takes) = &self.takes {
             result.specified_duration = Some(takes.eval())

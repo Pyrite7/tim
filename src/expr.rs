@@ -1,10 +1,10 @@
 use std::{str::FromStr, sync::LazyLock};
 
-use anyhow::{Error, anyhow};
+use anyhow::{Error, Result, anyhow, bail};
 use chrono::{NaiveDate, NaiveTime, TimeDelta};
 use regex::{Match, Regex};
 
-use crate::util::DateTime;
+use crate::util::*;
 
 
 
@@ -54,14 +54,16 @@ impl FromStr for TimeExpr {
 }
 
 impl TimeExpr {
-    pub fn eval(&self, now: DateTime) -> DateTime {
+    pub fn eval(&self, now: DateTime) -> Result<DateTime> {
         match self {
-            Self::Now => now,
-            Self::Today => now.date_naive().and_time(NaiveTime::default()).and_utc(),
-            Self::Tomorrow => now.date_naive().succ_opt().expect("reached end of time").and_time(NaiveTime::default()).and_utc(),
-            Self::Date(date) => date.and_time(NaiveTime::default()).and_utc(),
-            Self::Add(t, d) => d.iter().fold(t.eval(now), |t, d| {
-                t + d.eval()
+            Self::Now => Ok(now),
+            Self::Today => combine_io_dt_to_utc(now.date_naive(), NaiveTime::default()),
+            Self::Tomorrow => combine_io_dt_to_utc(
+                now.date_naive().succ_opt().ok_or(anyhow!("reached end of time"))?, 
+                NaiveTime::default()),
+            Self::Date(date) => combine_io_dt_to_utc(*date, NaiveTime::default()),
+            Self::Add(t, d) => d.iter().fold(Ok(t.eval(now)?), |t, d| {
+                Ok(t? + d.eval())
             })
         }
     }
@@ -73,26 +75,29 @@ pub enum TimeDeltaExpr {
         h: usize,
         m: usize,
     },
-    TimeAmount {
-        w: usize,
-        d: usize,
-        h: usize,
-        m: usize,
-        s: usize,
-    },
+    // TODO: fix
+    // TimeAmount {
+    //     w: usize,
+    //     d: usize,
+    //     h: usize,
+    //     m: usize,
+    //     s: usize,
+    // },
 }
 
 impl TimeDeltaExpr {
     pub fn eval(&self) -> TimeDelta {
         match self {
             Self::TimeOfDay { h, m } => TimeDelta::minutes((m + h * 60) as _),
-            Self::TimeAmount { w, d, h, m, s } => {
-                TimeDelta::weeks(*w as _)
-                + TimeDelta::days(*d as _)
-                + TimeDelta::hours(*h as _)
-                + TimeDelta::minutes(*m as _)
-                + TimeDelta::seconds(*s as _)
-            }
+            
+            // TODO: fix
+            // Self::TimeAmount { w, d, h, m, s } => {
+            //     TimeDelta::weeks(*w as _)
+            //     + TimeDelta::days(*d as _)
+            //     + TimeDelta::hours(*h as _)
+            //     + TimeDelta::minutes(*m as _)
+            //     + TimeDelta::seconds(*s as _)
+            // }
         }
     }
 }
@@ -111,17 +116,18 @@ impl FromStr for TimeDeltaExpr {
             Ok(TimeDeltaExpr::TimeOfDay { h, m })
         } else {
             // TODO: fix
-            let caps = TIME_AMOUNT_REGEX.captures(s).ok_or(anyhow!("invalid time delta: {s}"))?;
-            let parse = |m: Match<'_>, c| {
-                usize::from_str(m.as_str().strip_suffix(c).unwrap())
-            };
-            Ok(TimeDeltaExpr::TimeAmount { 
-                w: caps.get(1).map(|m| parse(m, "w")).unwrap_or(Ok(0))?,
-                d: caps.get(1).map(|m| parse(m, "d")).unwrap_or(Ok(0))?,
-                h: caps.get(1).map(|m| parse(m, "h")).unwrap_or(Ok(0))?,
-                m: caps.get(1).map(|m| parse(m, "m")).unwrap_or(Ok(0))?,
-                s: caps.get(1).map(|m| parse(m, "s")).unwrap_or(Ok(0))?
-            })
+            // let caps = TIME_AMOUNT_REGEX.captures(s).ok_or(anyhow!("invalid time delta: {s}"))?;
+            // let parse = |m: Match<'_>, c| {
+            //     usize::from_str(m.as_str().strip_suffix(c).unwrap())
+            // };
+            // Ok(TimeDeltaExpr::TimeAmount { 
+            //     w: caps.get(1).map(|m| parse(m, "w")).unwrap_or(Ok(0))?,
+            //     d: caps.get(1).map(|m| parse(m, "d")).unwrap_or(Ok(0))?,
+            //     h: caps.get(1).map(|m| parse(m, "h")).unwrap_or(Ok(0))?,
+            //     m: caps.get(1).map(|m| parse(m, "m")).unwrap_or(Ok(0))?,
+            //     s: caps.get(1).map(|m| parse(m, "s")).unwrap_or(Ok(0))?
+            // })
+            bail!("invalid time delta: {s}")
         }
     }
 }
