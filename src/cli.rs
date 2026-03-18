@@ -1,98 +1,92 @@
+use std::{env, fs, path::PathBuf, str::FromStr};
+
 use anyhow::Result;
-use argh::FromArgs;
+use clap::{Parser, Subcommand};
 
 use crate::{
     Task,
     expr::{TimeDeltaExpr, TimeExpr},
-    util::DateTime,
+    print_info_table, schedule_tasks, util,
 };
 
-#[derive(Debug, FromArgs, PartialEq, Eq)]
-/// Simple time management tool with automatic task scheduling.
-pub struct Args {
-    #[argh(subcommand)]
-    pub subcommand: Subcommand,
+#[derive(Debug, Parser)]
+#[command(version, about, name = "tim")]
+pub struct Cli {
+    #[command(subcommand)]
+    pub sub_cmd: SubCmd,
 }
 
-#[derive(Debug, FromArgs, PartialEq, Eq)]
-#[argh(subcommand)]
-pub enum Subcommand {
-    Ls(Ls),
-    Add(Add),
-    Sch(Sch),
-    Done(Done),
-    Start(Start),
-    Rm(Rm),
+#[derive(Debug, Subcommand)]
+pub enum SubCmd {
+    Ls {
+        #[arg(long, short)]
+        all: bool,
+    },
+    Add {
+        name: String,
+
+        #[arg(long, short)]
+        deadline: Option<TimeExpr>,
+
+        #[arg(long, short)]
+        takes: Option<TimeDeltaExpr>,
+    },
+    #[command(visible_alias = "sch")]
+    Schedule,
+    Done {
+        name: String,
+    },
+    Start {
+        name: String,
+    },
+    #[command(visible_alias = "rm")]
+    Remove {
+        name: String,
+    },
 }
 
-#[derive(Debug, FromArgs, PartialEq, Eq)]
-/// List tasks
-#[argh(subcommand, name = "ls")]
-pub struct Ls {
-    /// show all columns
-    #[argh(switch, short = 'a')]
-    pub all_columns: bool,
+impl Cli {
+    pub fn execute(self) -> Result<()> {
+        let data_dir = PathBuf::from_str(&env::var("TIM_DATA_DIR")?)?;
 
-    /// only show undone tasks
-    #[argh(switch, short = 'u')]
-    pub only_undone: bool,
-}
-
-#[derive(Debug, FromArgs, PartialEq, Eq)]
-/// Add a task
-#[argh(subcommand, name = "add")]
-pub struct Add {
-    #[argh(positional)]
-    pub name: String,
-
-    /// deadline for task
-    #[argh(option, short = 'd')]
-    deadline: Option<TimeExpr>,
-
-    /// estimated time taken
-    #[argh(option, short = 't')]
-    takes: Option<TimeDeltaExpr>,
-}
-
-impl Add {
-    /// Construct the task to be added by this subcommand
-    pub fn task(&self, now: DateTime) -> Result<Task> {
-        let mut result = Task::new(&self.name);
-        if let Some(deadline) = &self.deadline {
-            result.deadline = Some(deadline.eval(now)?)
+        match self.sub_cmd {
+            SubCmd::Ls { all } => {
+                print_info_table(&data_dir, !all, all)?;
+            }
+            SubCmd::Add {
+                name,
+                deadline,
+                takes,
+            } => {
+                let mut task = Task::new(&name);
+                if let Some(dl) = deadline {
+                    task.deadline = Some(dl.eval(util::now())?);
+                }
+                if let Some(takes) = takes {
+                    task.specified_duration = Some(takes.eval());
+                }
+                task.save(&data_dir)?;
+            }
+            SubCmd::Schedule => {
+                schedule_tasks(&data_dir)?;
+            }
+            SubCmd::Start { name } => {
+                let mut task: Task =
+                    serde_json::from_str(&fs::read_to_string(data_dir.join(name + ".json"))?)?;
+                task.started_at = Some(util::now());
+                task.save(&data_dir)?;
+            }
+            SubCmd::Done { name } => {
+                let mut task: Task =
+                    serde_json::from_str(&fs::read_to_string(data_dir.join(name + ".json"))?)?;
+                task.finished_at = Some(util::now());
+                task.save(&data_dir)?;
+            }
+            SubCmd::Remove { name } => {
+                fs::remove_file(data_dir.join(name + ".json"))?;
+            }
         }
-        if let Some(takes) = &self.takes {
-            result.specified_duration = Some(takes.eval())
-        }
-        Ok(result)
+
+        Ok(())
     }
-}
-
-#[derive(Debug, FromArgs, PartialEq, Eq)]
-/// Schedule tasks
-#[argh(subcommand, name = "sch")]
-pub struct Sch {}
-
-#[derive(Debug, FromArgs, PartialEq, Eq)]
-/// Mark a task as done
-#[argh(subcommand, name = "done")]
-pub struct Done {
-    #[argh(positional)]
-    pub name: String,
-}
-
-#[derive(Debug, FromArgs, PartialEq, Eq)]
-/// Mark a task as started
-#[argh(subcommand, name = "start")]
-pub struct Start {
-    #[argh(positional)]
-    pub name: String,
-}
-
-#[derive(Debug, FromArgs, PartialEq, Eq)]
-/// Remove a task
-#[argh(subcommand, name = "rm")]
-pub struct Rm {
-    #[argh(positional)]
-    pub name: String,
 }

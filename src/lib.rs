@@ -227,12 +227,7 @@ pub fn print_info_table(
 
     print_row(&columns);
     let separator_cols: Vec<_> = column_widths.iter().map(|w| "-".repeat(*w)).collect();
-    print_row(
-        &separator_cols
-            .iter()
-            .map(|s| s as &str)
-            .collect::<Vec<_>>(),
-    );
+    print_row(&separator_cols.iter().map(|s| s as &str).collect::<Vec<_>>());
 
     tasks.sort_by(|a, b| {
         // Completed tasks at the bottom, sorted by most recent completion time

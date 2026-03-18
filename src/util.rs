@@ -23,8 +23,7 @@ pub fn to_utc(io: IODateTime) -> DateTime {
 }
 
 pub fn combine_io_dt(date: NaiveDate, time: NaiveTime) -> Result<IODateTime> {
-    date
-        .and_time(time)
+    date.and_time(time)
         .and_local_timezone(Local)
         .earliest()
         .ok_or(anyhow!("time {time} does not exist on {date}"))
