@@ -12,6 +12,9 @@ use crate::{
 #[derive(Debug, Parser)]
 #[command(version, about, name = "tim")]
 pub struct Cli {
+    #[arg(long, short)]
+    pub data_dir: Option<PathBuf>,
+
     #[command(subcommand)]
     pub sub_cmd: SubCmd,
 }
@@ -47,7 +50,7 @@ pub enum SubCmd {
 
 impl Cli {
     pub fn execute(self) -> Result<()> {
-        let data_dir = PathBuf::from_str(&env::var("TIM_DATA_DIR")?)?;
+        let data_dir = self.data_dir.unwrap_or(PathBuf::from_str(&env::var("TIM_DATA_DIR")?)?);
 
         match self.sub_cmd {
             SubCmd::Ls { all } => {
