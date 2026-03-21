@@ -18,6 +18,8 @@ pub struct Task {
     pub scheduled_start: Option<DateTime>,
     pub started_at: Option<DateTime>,
     pub finished_at: Option<DateTime>,
+    #[serde(default)]
+    pub flexible: bool,
 }
 
 impl Task {
@@ -117,12 +119,16 @@ pub fn schedule_tasks(data_dir: &Path) -> Result<()> {
                 .and_time(working_hours_start)
                 .and_utc();
         } else if time_cursor.time() + task.estimated_duration() > working_hours_end {
-            time_cursor = time_cursor
-                .date_naive()
-                .succ_opt()
-                .expect("reached end of time")
-                .and_time(working_hours_start)
-                .and_utc();
+            if !task.flexible {
+                time_cursor = time_cursor
+                    .date_naive()
+                    .succ_opt()
+                    .expect("reached end of time")
+                    .and_time(working_hours_start)
+                    .and_utc();
+            } else {
+                // TODO: implement flexible task splitting
+            }
         }
 
         // Schedule task and increment time cursor
