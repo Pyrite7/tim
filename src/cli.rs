@@ -1,6 +1,6 @@
 use std::{env, fs, path::PathBuf, str::FromStr};
 
-use anyhow::Result;
+use anyhow::{Result, ensure};
 use clap::{Parser, Subcommand};
 
 use crate::{
@@ -33,6 +33,9 @@ pub enum SubCmd {
 
         #[arg(long, short)]
         takes: Option<TimeDeltaExpr>,
+
+        #[arg(long, short)]
+        lock: bool
     },
     #[command(visible_alias = "sch")]
     Schedule,
@@ -44,6 +47,12 @@ pub enum SubCmd {
     },
     #[command(visible_alias = "rm")]
     Remove {
+        name: String,
+    },
+    Lock {
+        name: String,
+    },
+    Unlock {
         name: String,
     },
 }
@@ -60,8 +69,10 @@ impl Cli {
                 name,
                 deadline,
                 takes,
-            } => {
+                lock } => {
                 let mut task = Task::new(&name);
+                if lock { todo!("todo: locked tasks must also be scheduled") }
+                task.locked = lock;
                 if let Some(dl) = deadline {
                     task.deadline = Some(dl.eval(util::now())?);
                 }
@@ -87,6 +98,19 @@ impl Cli {
             }
             SubCmd::Remove { name } => {
                 fs::remove_file(data_dir.join(name + ".json"))?;
+            }
+            SubCmd::Lock { name } => {
+                let mut task: Task =
+                    serde_json::from_str(&fs::read_to_string(data_dir.join(name.clone() + ".json"))?)?;
+                ensure!(task.scheduled_start.is_some(), "cannot lock unscheduled task: {}", name);
+                task.locked = true;
+                task.save(&data_dir)?;
+            }
+            SubCmd::Unlock { name } => {
+                let mut task: Task =
+                    serde_json::from_str(&fs::read_to_string(data_dir.join(name + ".json"))?)?;
+                task.locked = false;
+                task.save(&data_dir)?;
             }
         }
 

@@ -2,11 +2,12 @@ pub mod cli;
 pub mod expr;
 pub mod fmt;
 pub mod util;
+pub mod interval;
 
-use std::{cmp::Ordering, fs, path::Path};
+use std::{cmp::Ordering, fs, iter, path::Path};
 
-use crate::util::*;
-use anyhow::{Result, ensure};
+use crate::{interval::Interval, util::*};
+use anyhow::{Result, anyhow, ensure};
 use chrono::{Duration, NaiveTime, TimeDelta};
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +19,8 @@ pub struct Task {
     pub scheduled_start: Option<DateTime>,
     pub started_at: Option<DateTime>,
     pub finished_at: Option<DateTime>,
+    #[serde(default)]
+    pub locked: bool,
 }
 
 impl Task {
@@ -47,6 +50,10 @@ impl Task {
 
     pub fn scheduled_end(&self) -> Option<DateTime> {
         Some(self.scheduled_start? + self.estimated_duration())
+    }
+
+    pub fn scheduled_interval(&self) -> Option<Interval> {
+        self.scheduled_start.map(|s| Interval::from_duration(s, self.estimated_duration()))
     }
 }
 
@@ -78,10 +85,15 @@ pub fn load_tasks(data_dir: &Path) -> Result<Vec<Result<Task>>> {
 /// Automatically schedules all tasks.
 pub fn schedule_tasks(data_dir: &Path) -> Result<()> {
     // Load all undone tasks
-    let mut tasks: Vec<_> = load_all_tasks(data_dir)?
+    let all_tasks: Vec<_> = load_all_tasks(data_dir)?
         .into_iter()
         .filter(|task| task.finished_at.is_none())
         .collect();
+    // Split into locked and unlocked
+    let (locked_tasks, mut tasks): (Vec<_>, Vec<_>) = all_tasks
+        .iter()
+        .cloned()
+        .partition(|task| task.locked);
 
     // Sort by closest deadline
     tasks.sort_unstable_by_key(|task| task.deadline.unwrap_or(DateTime::MAX_UTC));
@@ -107,22 +119,30 @@ pub fn schedule_tasks(data_dir: &Path) -> Result<()> {
     // Schedule
     let mut time_cursor = starting_time;
     for task in tasks.iter_mut() {
-        // Check if task fits within working hours
         // TODO: remove hard-coded working hours (note that these are in UTC time and not local)
         let working_hours_start = NaiveTime::from_hms_opt(9, 0, 0).unwrap();
         let working_hours_end = NaiveTime::from_hms_opt(18, 0, 0).unwrap();
+        
         if time_cursor.time() < working_hours_start {
             time_cursor = time_cursor
-                .date_naive()
-                .and_time(working_hours_start)
-                .and_utc();
-        } else if time_cursor.time() + task.estimated_duration() > working_hours_end {
-            time_cursor = time_cursor
-                .date_naive()
-                .succ_opt()
-                .expect("reached end of time")
-                .and_time(working_hours_start)
-                .and_utc();
+            .date_naive()
+            .and_time(working_hours_start)
+            .and_utc();
+        }
+        loop {
+            // - define inverse of working hours near time cursor
+            // - add all locked tasks
+            // - get overlap
+            // - if overlap, skip to next possible time
+            let today = time_cursor.date_naive();
+            let tmr = today.succ_opt().ok_or(anyhow!("reached end of time"))?;
+            let non_working_hrs = Interval::new(combine_dt(today, working_hours_end), combine_dt(tmr, working_hours_start));
+            let blockers = iter::once(non_working_hrs)
+                .chain(locked_tasks.iter().map(|task| task.scheduled_interval().expect("unscheduled locked task")));
+            match Interval::from_duration(time_cursor, task.estimated_duration()).overlaps(blockers).next() {
+                Some((blocker, _)) => time_cursor = blocker.end,
+                None => break,
+            }
         }
 
         // Schedule task and increment time cursor
