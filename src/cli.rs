@@ -44,7 +44,7 @@ pub enum SubCmd {
     },
     #[command(visible_alias = "rm")]
     Remove {
-        name: String,
+        names: Vec<String>,
     },
 }
 
@@ -85,8 +85,10 @@ impl Cli {
                 task.finished_at = Some(util::now());
                 task.save(&data_dir)?;
             }
-            SubCmd::Remove { name } => {
-                fs::remove_file(data_dir.join(name + ".json"))?;
+            SubCmd::Remove { names } => {
+                for name in names {
+                    fs::remove_file(data_dir.join(name + ".json"))?;
+                }
             }
         }
 
